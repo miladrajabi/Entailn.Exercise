@@ -3,10 +3,12 @@ using Entain.Application.Service;
 if (args.Length == 0 || args.Contains("--help", StringComparer.OrdinalIgnoreCase))
 {
     Console.WriteLine("Usage:");
-    Console.WriteLine("  dotnet run --project Entain.AsyncPageDownloader/Entain.AsyncPageDownloader.csproj -- <url1> <url2> <url3>");
+    Console.WriteLine(
+        "  dotnet run --project Entain.AsyncPageDownloader/Entain.AsyncPageDownloader.csproj -- <url1> <url2> <url3>");
     Console.WriteLine();
     Console.WriteLine("Example:");
-    Console.WriteLine("  dotnet run --project Entain.AsyncPageDownloader/Entain.AsyncPageDownloader.csproj -- https://example.com https://dotnet.microsoft.com");
+    Console.WriteLine(
+        "  dotnet run --project Entain.AsyncPageDownloader/Entain.AsyncPageDownloader.csproj -- https://example.com https://dotnet.microsoft.com");
     return;
 }
 

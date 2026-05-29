@@ -34,12 +34,10 @@ public class WebPageDownloader : IWebPageDownloader
             var statusCode = (int)response.StatusCode;
 
             if (!response.IsSuccessStatusCode)
-            {
                 return WebPageDownloadResult.Failure(
                     url,
                     $"Request failed with HTTP status code {statusCode}.",
                     statusCode);
-            }
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             return WebPageDownloadResult.Success(url, statusCode, content);
