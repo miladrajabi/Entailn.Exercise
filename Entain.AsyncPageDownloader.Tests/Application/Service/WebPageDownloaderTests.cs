@@ -32,6 +32,7 @@ public class WebPageDownloaderTests
         // Assert
         result.Should().HaveCount(3);
         result.Should().OnlyContain(page => page.IsSuccess);
+        result.Should().OnlyContain(page => page.StatusCode == 200);
         result.Select(page => page.Url).Should().Equal(urls);
         result.Select(page => page.Content).Should().OnlyContain(content => !string.IsNullOrWhiteSpace(content));
     }
@@ -63,6 +64,7 @@ public class WebPageDownloaderTests
         // Assert
         result.Should().ContainSingle();
         result[0].IsSuccess.Should().BeFalse();
+        result[0].StatusCode.Should().BeNull();
         result[0].ErrorMessage.Should().NotBeNullOrWhiteSpace();
     }
 
@@ -94,6 +96,7 @@ public class WebPageDownloaderTests
         result.Should().HaveCount(2);
         result[0].IsSuccess.Should().BeTrue();
         result[1].IsSuccess.Should().BeFalse();
+        result[1].StatusCode.Should().Be(404);
         result[1].ErrorMessage.Should().NotBeNullOrWhiteSpace();
     }
 
@@ -111,16 +114,6 @@ public class WebPageDownloaderTests
         {
             var response = responseFactory(request);
             response.RequestMessage = request;
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var exception = new HttpRequestException(
-                    $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}).",
-                    null,
-                    response.StatusCode);
-
-                return Task.FromException<HttpResponseMessage>(exception);
-            }
 
             return Task.FromResult(response);
         }

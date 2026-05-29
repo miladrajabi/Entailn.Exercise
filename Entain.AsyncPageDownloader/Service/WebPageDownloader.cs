@@ -30,8 +30,19 @@ public class WebPageDownloader : IWebPageDownloader
 
         try
         {
-            var content = await _httpClient.GetStringAsync(uri, cancellationToken);
-            return WebPageDownloadResult.Success(url, content);
+            using var response = await _httpClient.GetAsync(uri, cancellationToken);
+            var statusCode = (int)response.StatusCode;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return WebPageDownloadResult.Failure(
+                    url,
+                    $"Request failed with HTTP status code {statusCode}.",
+                    statusCode);
+            }
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return WebPageDownloadResult.Success(url, statusCode, content);
         }
         catch (OperationCanceledException)
         {
