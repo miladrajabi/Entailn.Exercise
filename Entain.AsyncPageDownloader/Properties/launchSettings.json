@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Entain.AsyncPageDownloader": {
+      "commandName": "Project",
+      "commandLineArgs": "https://example.com https://dotnet.microsoft.com https://github.com"
+    }
+  }
+}
