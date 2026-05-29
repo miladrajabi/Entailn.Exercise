@@ -1,6 +1,6 @@
 # Entain - Asynchronous Web Page Download Exercise
 
-This solution contains a small .NET 8 console application that downloads multiple web pages concurrently.
+This solution contains a small .NET 10 console application that downloads multiple web pages concurrently.
 
 ## Project Structure
 
