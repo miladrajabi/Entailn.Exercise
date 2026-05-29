@@ -1,4 +1,4 @@
-using Entain.Application.Service;
+using Entain.AsyncPageDownloader.Service;
 
 if (args.Length == 0 || args.Contains("--help", StringComparer.OrdinalIgnoreCase))
 {
@@ -12,10 +12,8 @@ if (args.Length == 0 || args.Contains("--help", StringComparer.OrdinalIgnoreCase
     return;
 }
 
-using var httpClient = new HttpClient
-{
-    Timeout = TimeSpan.FromSeconds(30)
-};
+using var httpClient = new HttpClient();
+httpClient.Timeout = TimeSpan.FromSeconds(30);
 
 var downloader = new WebPageDownloader(httpClient);
 var results = await downloader.DownloadPagesAsync(args);

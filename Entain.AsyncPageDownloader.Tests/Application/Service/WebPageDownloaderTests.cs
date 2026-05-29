@@ -1,6 +1,6 @@
 using System.Net;
-using Entain.Application.Interface.Service;
-using Entain.Application.Service;
+using Entain.AsyncPageDownloader.Interface.Service;
+using Entain.AsyncPageDownloader.Service;
 using FluentAssertions;
 using Xunit;
 

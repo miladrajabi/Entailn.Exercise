@@ -1,15 +1,10 @@
-using Entain.Application.Interface.Service;
+using Entain.AsyncPageDownloader.Interface.Service;
 
-namespace Entain.Application.Service;
+namespace Entain.AsyncPageDownloader.Service;
 
-public class WebPageDownloader : IWebPageDownloader
+public class WebPageDownloader(HttpClient httpClient) : IWebPageDownloader
 {
-    private readonly HttpClient _httpClient;
-
-    public WebPageDownloader(HttpClient httpClient)
-    {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-    }
+    private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
     public async Task<IReadOnlyList<WebPageDownloadResult>> DownloadPagesAsync(
         IEnumerable<string> urls,

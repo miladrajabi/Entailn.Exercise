@@ -1,6 +1,6 @@
-using Entain.Application.Service;
+using Entain.AsyncPageDownloader.Service;
 
-namespace Entain.Application.Interface.Service;
+namespace Entain.AsyncPageDownloader.Interface.Service;
 
 public interface IWebPageDownloader
 {
