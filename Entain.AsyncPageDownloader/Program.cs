@@ -1,4 +1,10 @@
+using Entain.AsyncPageDownloader.Interface.Service;
+using Entain.AsyncPageDownloader.Options;
 using Entain.AsyncPageDownloader.Service;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 if (args.Length == 0 || args.Contains("--help", StringComparer.OrdinalIgnoreCase))
 {
@@ -12,13 +18,42 @@ if (args.Length == 0 || args.Contains("--help", StringComparer.OrdinalIgnoreCase
     return;
 }
 
-using var httpClient = new HttpClient();
-httpClient.Timeout = TimeSpan.FromSeconds(30);
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: false)
+    .AddEnvironmentVariables(prefix: "ENTAIN_")
+    .Build();
 
-var downloader = new WebPageDownloader(httpClient);
-var results = await downloader.DownloadPagesAsync(args);
+var services = new ServiceCollection();
 
-foreach (var result in results)
+services
+    .AddOptions<DownloaderOptions>()
+    .Bind(configuration.GetSection(DownloaderOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+services.AddLogging(builder =>
+{
+    builder.AddConfiguration(configuration.GetSection("Logging"));
+    builder.AddConsole();
+});
+
+services.AddHttpClient<IWebPageDownloader, WebPageDownloader>((provider, client) =>
+{
+    var options = provider.GetRequiredService<IOptions<DownloaderOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(options.RequestTimeoutSeconds);
+});
+
+services.AddSingleton<IDownloadResultStore, FileDownloadResultStore>();
+services.AddSingleton<IDownloadJobRunner, DownloadJobRunner>();
+
+await using var serviceProvider = services.BuildServiceProvider(
+    new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+
+var runner = serviceProvider.GetRequiredService<IDownloadJobRunner>();
+var summary = await runner.RunAsync(args);
+
+foreach (var result in summary.Results)
 {
     if (result.IsSuccess)
     {
@@ -29,3 +64,7 @@ foreach (var result in results)
     var status = result.StatusCode is null ? string.Empty : $" ({result.StatusCode})";
     Console.WriteLine($"Failed {result.Url}{status}: {result.ErrorMessage}");
 }
+
+Console.WriteLine();
+Console.WriteLine($"Summary: {summary.Succeeded}/{summary.Total} succeeded, {summary.Failed} failed.");
+Console.WriteLine($"Results saved to: {summary.OutputFilePath}");

@@ -1,10 +1,13 @@
 using System.Net;
 using Entain.AsyncPageDownloader.Interface.Service;
+using Entain.AsyncPageDownloader.Options;
 using Entain.AsyncPageDownloader.Service;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
-namespace Entailn.Test.Application.Service;
+namespace Entain.AsyncPageDownloader.Tests.Application.Service;
 
 public class WebPageDownloaderTests
 {
@@ -18,7 +21,7 @@ public class WebPageDownloaderTests
                 Content = new StringContent($"Content for {request.RequestUri}")
             });
 
-        IWebPageDownloader webPageDownloader = new WebPageDownloader(httpClient);
+        IWebPageDownloader webPageDownloader = CreateDownloader(httpClient);
         string[] urls =
         [
             "https://example.com/page-one",
@@ -42,7 +45,7 @@ public class WebPageDownloaderTests
     {
         // Arrange
         using var httpClient = CreateHttpClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
-        IWebPageDownloader webPageDownloader = new WebPageDownloader(httpClient);
+        IWebPageDownloader webPageDownloader = CreateDownloader(httpClient);
 
         // Act
         var result = await webPageDownloader.DownloadPagesAsync([]);
@@ -56,7 +59,7 @@ public class WebPageDownloaderTests
     {
         // Arrange
         using var httpClient = CreateHttpClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
-        IWebPageDownloader webPageDownloader = new WebPageDownloader(httpClient);
+        IWebPageDownloader webPageDownloader = CreateDownloader(httpClient);
 
         // Act
         var result = await webPageDownloader.DownloadPagesAsync(["not-a-url"]);
@@ -83,7 +86,7 @@ public class WebPageDownloaderTests
             };
         });
 
-        IWebPageDownloader webPageDownloader = new WebPageDownloader(httpClient);
+        IWebPageDownloader webPageDownloader = CreateDownloader(httpClient);
 
         // Act
         var result = await webPageDownloader.DownloadPagesAsync(
@@ -100,22 +103,77 @@ public class WebPageDownloaderTests
         result[1].ErrorMessage.Should().NotBeNullOrWhiteSpace();
     }
 
+    [Fact]
+    public async Task DownloadPagesAsync_ShouldRespectConfiguredConcurrencyLimit()
+    {
+        // Arrange
+        var activeRequests = 0;
+        var maxObservedConcurrency = 0;
+
+        using var httpClient = CreateHttpClient(async _ =>
+        {
+            var current = Interlocked.Increment(ref activeRequests);
+            maxObservedConcurrency = Math.Max(maxObservedConcurrency, current);
+
+            await Task.Delay(50);
+
+            Interlocked.Decrement(ref activeRequests);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("Successful page")
+            };
+        });
+
+        IWebPageDownloader webPageDownloader = CreateDownloader(
+            httpClient,
+            new DownloaderOptions { MaxConcurrentDownloads = 2 });
+
+        // Act
+        var result = await webPageDownloader.DownloadPagesAsync(
+        [
+            "https://example.com/one",
+            "https://example.com/two",
+            "https://example.com/three",
+            "https://example.com/four"
+        ]);
+
+        // Assert
+        result.Should().OnlyContain(page => page.IsSuccess);
+        maxObservedConcurrency.Should().BeLessThanOrEqualTo(2);
+    }
+
+    private static IWebPageDownloader CreateDownloader(
+        HttpClient httpClient,
+        DownloaderOptions? options = null)
+    {
+        return new WebPageDownloader(
+            httpClient,
+            Microsoft.Extensions.Options.Options.Create(options ?? new DownloaderOptions()),
+            NullLogger<WebPageDownloader>.Instance);
+    }
+
     private static HttpClient CreateHttpClient(Func<HttpRequestMessage, HttpResponseMessage> responseFactory)
+    {
+        return CreateHttpClient(request => Task.FromResult(responseFactory(request)));
+    }
+
+    private static HttpClient CreateHttpClient(Func<HttpRequestMessage, Task<HttpResponseMessage>> responseFactory)
     {
         return new HttpClient(new StubHttpMessageHandler(responseFactory));
     }
 
     private sealed class StubHttpMessageHandler(
-        Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler
+        Func<HttpRequestMessage, Task<HttpResponseMessage>> responseFactory) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            var response = responseFactory(request);
+            var response = await responseFactory(request);
             response.RequestMessage = request;
 
-            return Task.FromResult(response);
+            return response;
         }
     }
 }
